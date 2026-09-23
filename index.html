@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Downloader</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 480px; }
+        h1 { font-size: 1.5rem; color: #111827; margin-bottom: 8px; }
+        p { color: #6b7280; font-size: 0.9rem; margin-bottom: 20px; }
+        input[type="url"] { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 16px; outline: none; }
+        input[type="url"]:focus { border-color: #2563eb; }
+        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #93c5fd; cursor: not-allowed; }
+        #status { margin-top: 16px; font-size: 0.9rem; text-align: center; color: #374151; word-break: break-word; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>YouTube Video Downloader</h1>
+        <p>Füge einen YouTube-Link ein, um das Video herunterzuladen.</p>
+        
+        <form id="downloadForm">
+            <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required />
+            <button type="submit" id="submitBtn">Video Herunterladen</button>
+        </form>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // Ersetze diese URL durch deine echte Render.com App URL!
+        const RENDER_BACKEND_URL = "https://DEIN-RENDER-NAME.onrender.com/download";
+
+        document.getElementById('downloadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const urlInput = document.getElementById('videoUrl').value;
+            const status = document.getElementById('status');
+            const btn = document.getElementById('submitBtn');
+
+            status.textContent = "Verarbeitung läuft... Bitte warten (kann bei kostenlosen Render-Servern kurz dauern).";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(RENDER_BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlInput })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Fehler beim Herunterladen des Videos.');
+                }
+
+                // Datei-Download im Browser auslösen
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                
+                // Dateinamen aus Header lesen oder Standardwert nutzen
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'video.mp4';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                    if (match && match[1]) filename = match[1];
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                
+                status.textContent = "Download abgeschlossen!";
+            } catch (err) {
+                status.textContent = "Fehler: " + err.message;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
