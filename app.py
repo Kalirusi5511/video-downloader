@@ -1,29 +1,36 @@
 import os
+import sys
 import logging
 import subprocess
 import tempfile
-from datetime import datetime
-from flask import Flask, request, send_file, jsonify
+import shutil
+from flask import Flask, request, send_file, jsonify, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 # Erlaubt Anfragen von GitHub Pages
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Log-Einstellungen für das Render-Dashboard und lokale Dateien
-LOG_FILE = 'downloads.log'
+# Einfaches Logging ohne extra-Felder (vermeidet KeyError)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] IP: %(client_ip)s - URL: %(video_url)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler()  # Zeigt die Logs direkt im Render-Terminal an
-    ]
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler()]
 )
+logger = logging.getLogger(__name__)
+
 
 @app.route('/')
 def home():
+    """Liefert die HTML-Oberfläche."""
+    return render_template('index.html')
+
+
+@app.route('/status')
+def status():
+    """Optionaler Health-Check als JSON."""
     return jsonify({"status": "Backend läuft einwandfrei"})
+
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -34,36 +41,54 @@ def download():
     if not video_url:
         return jsonify({'error': 'URL ist erforderlich'}), 400
 
-    # Protokolliere den Versuch in den Logs
-    extra = {'client_ip': client_ip, 'video_url': video_url}
-    logging.info("Download angefordert", extra=extra)
+    logger.info(f"Download angefordert von IP {client_ip} für URL: {video_url}")
 
     temp_dir = tempfile.mkdtemp()
     output_template = os.path.join(temp_dir, '%(title)s.%(ext)s')
 
     try:
-        # yt-dlp lädt das MP4-Video herunter
+        # yt-dlp als Python-Modul aufrufen (zuverlässiger als Binary)
         cmd = [
-            'yt-dlp',
+            sys.executable, '-m', 'yt_dlp',
             '-f', 'b[ext=mp4]/best[ext=mp4]/best',
             '-o', output_template,
             '--no-playlist',
             video_url
         ]
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True
+        )
 
         downloaded_files = os.listdir(temp_dir)
         if not downloaded_files:
             return jsonify({'error': 'Keine Datei gefunden.'}), 500
 
         filepath = os.path.join(temp_dir, downloaded_files[0])
+        logger.info(f"Download erfolgreich: {downloaded_files[0]}")
+
         return send_file(filepath, as_attachment=True)
 
-    except subprocess.CalledProcessError:
-        logging.error(f"Fehler bei yt-dlp für URL: {video_url}", extra={'client_ip': client_ip, 'video_url': video_url})
-        return jsonify({'error': 'Fehler beim Herunterladen von YouTube.'}), 500
+    except subprocess.CalledProcessError as e:
+        logger.error(f"yt-dlp Fehler: {e.stderr}")
+        return jsonify({
+            'error': 'Fehler beim Herunterladen von YouTube.',
+            'details': e.stderr[-500:] if e.stderr else 'Unbekannt'
+        }), 500
     except Exception as e:
+        logger.error(f"Allgemeiner Fehler: {str(e)}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        # Temporären Ordner aufräumen (nach dem Senden)
+        # Hinweis: send_file streamt die Datei; bei sehr großen Dateien
+        # kann das Aufräumen zu früh kommen. Für kleinen Use-Case OK.
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
