@@ -1,0 +1,4 @@
+Flask==3.0.2
+flask-cors
+gunicorn==21.2.0
+yt-dlp
