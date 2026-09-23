@@ -3,89 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Downloader</title>
+    <title>Video Downloader</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 480px; }
-        h1 { font-size: 1.5rem; color: #111827; margin-bottom: 8px; }
-        p { color: #6b7280; font-size: 0.9rem; margin-bottom: 20px; }
-        input[type="url"] { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 16px; outline: none; }
-        input[type="url"]:focus { border-color: #2563eb; }
-        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #1d4ed8; }
-        button:disabled { background: #93c5fd; cursor: not-allowed; }
-        #status { margin-top: 16px; font-size: 0.9rem; text-align: center; color: #374151; word-break: break-word; }
-        .download-link { display: inline-block; margin-top: 10px; padding: 10px 16px; background: #10b981; color: white; border-radius: 6px; text-decoration: none; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 560px;
+        }
+        h1 {
+            margin-top: 0;
+            color: #1a1a2e;
+            font-size: 1.5rem;
+        }
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        button:hover:not(:disabled) {
+            background: #5a6fd8;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        #status.info { display: block; background: #e3f2fd; color: #1565c0; }
+        #status.error { display: block; background: #ffebee; color: #c62828; }
+        #status.success { display: block; background: #e8f5e9; color: #2e7d32; }
+        .download-link {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 10px 20px;
+            background: #4caf50;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .download-link:hover {
+            background: #43a047;
+        }
+        .hint {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 1rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>YouTube Downloader</h1>
-        <p>Füge einen vollständigen YouTube-Link ein.</p>
-        
-        <form id="downloadForm">
-            <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." required />
-            <button type="submit" id="submitBtn">Link Generieren</button>
-        </form>
-        
+    <div class="container">
+        <h1>🎬 Video Downloader</h1>
+        <p>Fügen Sie eine YouTube-URL ein:</p>
+        <div class="form-group">
+            <input type="text" id="musicUrl" placeholder="https://www.youtube.com/watch?v=...">
+            <button id="downloadBtn" onclick="startDownload()">Video herunterladen</button>
+        </div>
         <div id="status"></div>
+
+        <p class="hint">
+            Nur für lokale Tests und Bildungszwecke.
+        </p>
     </div>
 
     <script>
-        document.getElementById('downloadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const urlInput = document.getElementById('videoUrl').value.trim();
+        async function startDownload() {
+            const urlInput = document.getElementById('musicUrl');
+            const btn = document.getElementById('downloadBtn');
             const status = document.getElementById('status');
-            const btn = document.getElementById('submitBtn');
+            const url = urlInput.value.trim();
 
-            status.textContent = "Verarbeite Link...";
+            if (!url) {
+                status.className = 'error';
+                status.textContent = 'Bitte geben Sie eine URL ein.';
+                return;
+            }
+
             btn.disabled = true;
+            btn.textContent = 'Lädt...';
+            status.className = 'info';
+            status.textContent = 'Download wird gestartet... (kann 1-3 Min dauern)';
 
             try {
-                // Nutzung einer stabilen Proxy-API für direkte Downloads
-                const apiEndpoint = `https://api.cobalt.tools/`;
-                
-                const response = await fetch(apiEndpoint, {
+                const response = await fetch('/download', {
                     method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        url: urlInput,
-                        videoQuality: '720'
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
                 });
-
-                if (!response.ok) {
-                    throw new Error("API derzeit ausgelastet oder Link nicht erreichbar.");
-                }
 
                 const data = await response.json();
 
-                if (data.url) {
-                    status.innerHTML = `<a href="${data.url}" class="download-link" target="_blank" rel="noopener noreferrer">Video Herunterladen</a>`;
-                } else if (data.picker) {
-                    status.innerHTML = `<a href="${data.picker[0].url}" class="download-link" target="_blank" rel="noopener noreferrer">Video Herunterladen</a>`;
-                } else {
-                    throw new Error("Kein direkter Download-Stream gefunden.");
+                if (!response.ok) {
+                    throw new Error(data.error || 'Unbekannter Fehler');
                 }
+
+                status.className = 'success';
+                status.innerHTML = `
+                    Download erfolgreich!<br>
+                    <a class="download-link" href="${data.download_url}" download>📥 MP4 herunterladen</a>
+                `;
+
             } catch (err) {
-                // Fallback: Direkte Weiterleitung an Invidious Stream
-                const videoIdMatch = urlInput.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                if (videoIdMatch && videoIdMatch[1]) {
-                    const videoId = videoIdMatch[1];
-                    status.innerHTML = `
-                        <p style="color: #d97706; margin-bottom: 8px;">Direktabruf blockiert. Nutze den Invidious-Mirror:</p>
-                        <a href="https://yewtu.be/watch?v=${videoId}" class="download-link" target="_blank" rel="noopener noreferrer">Video auf Invidious öffnen/speichern</a>
-                    `;
-                } else {
-                    status.textContent = "Fehler: Ungültige YouTube-URL. Bitte überprüfe den Link.";
-                }
+                status.className = 'error';
+                status.textContent = 'Fehler: ' + err.message;
             } finally {
                 btn.disabled = false;
+                btn.textContent = 'Video herunterladen';
             }
+        }
+
+        document.getElementById('musicUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startDownload();
         });
     </script>
 </body>
